@@ -33,15 +33,25 @@ def p_calc(args,params):
                                 # Reward function
                                 r_A = (max(state_A - request_A,0) * 10.0)
                                 r_B = (max(state_B - request_B,0) * 10.0)
-                                r = r_A + r_B - (abs(action) * 2.0)
+                                r = r_A + r_B
 
-                                # print("     State A: %02d | State B: %02d | r: %04d" %(s_prime_A,s_prime_B,r))
-                                temp[((s_prime_A, s_prime_B),r)] = temp.get(((s_prime_A, s_prime_B),r),0)
-                                temp[((s_prime_A, s_prime_B),r)] += prior[(request_A, return_A, request_B, return_B)]
+                                # Cost function
+                                if action < 0:
+                                    c_move = 2.0 * (abs(action) - 1)
+                                else:
+                                    c_move = 2.0 * abs(action)
+
+                                c_park = ( max(s_prime_A - 10, 0) + max(s_prime_B - 10, 0) ) * 4.0
+
+                                reward = r - c_move - c_park
+
+                                # print("     State A: %02d | State B: %02d | r: %04d" %(s_prime_A,s_prime_B,reward))
+                                temp[((s_prime_A, s_prime_B),reward)] = temp.get(((s_prime_A, s_prime_B),reward),0)
+                                temp[((s_prime_A, s_prime_B),reward)] += prior[(request_A, return_A, request_B, return_B)]
 
             P[action] = temp
 
-    with open('P' + str(state_A)+str('_')+str(state_B), 'wb') as f:
+    with open('P%i_%i.pkl' %(state_A,state_B), 'wb') as f:
         pickle.dump(P, f, protocol=-1)
 
 def parallel_sampling(grid,params):
@@ -135,7 +145,7 @@ def policy_evaluation(pi,V,gamma=0.9,Theta=0.00001,lb=0,ub=20):
         for i in range(len(states)): # State A index
             for j in range(len(states)): # State B index
 
-                with open('P' + str(i)+str('_')+str(j), 'rb') as f:
+                with open('P%i_%i.pkl' %(i,j), 'rb') as f:
                     P = pickle.load(f)
 
                 a = pi[(i, j)]
@@ -178,7 +188,7 @@ def policy_improvement(pi,V,gamma=0.9,Theta=0.00001,lb=0,ub=20,lb_a=-5,ub_a=5):
             for j in range(len_states): # State B index
                 
                 old_action = pi[(i, j)]
-                with open('P' + str(i)+str('_')+str(j), 'rb') as f:
+                with open('P%i_%i.pkl' %(i,j), 'rb') as f:
                     P = pickle.load(f)
 
                 # objective function to be maximized
@@ -326,7 +336,8 @@ def train(pi,V,save=True):
             with open('V'+str(q), 'rb') as v:
                 V = pickle.load(v)
 
-        plot_policy(pi,V)
+        fig = plot_policy(pi,V)
+        fig.savefig('imgs/pi_%i.png' %(q), format='png', dpi=200)
         policies += [pi]
         value_functions += [V]
 
@@ -354,15 +365,25 @@ def plot_policy(pi,V):
     Z = np.reshape(z,np.shape(X))
 
     fig, ax = plt.subplots(figsize=(10,6))
-    ax.contourf(X,Y,Z, cmap=plt.cm.jet,levels=11)
+    c = ax.contourf(X,Y,Z, cmap=plt.cm.jet,levels=11)
+
+    # Make a colorbar for the ContourSet returned by the contourf call.
+    cbar = fig.colorbar(c)
+    cbar.ax.set_ylabel('pi')
+
+    ax.set_xlabel('State_A')
+    ax.set_ylabel('State_B')
 
     plt.show()
 
+    return fig
 
 if __name__ == "__main__":
 
+    # compute_posterior_P()
+
     pi,V = init()
-    policies,value_functions = train(pi,V,save=True)
+    policies,value_functions = train(pi,V,save=False)
     
     pi = policies[0]; V = value_functions[4]
 
