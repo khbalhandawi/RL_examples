@@ -83,7 +83,7 @@ def serial_sampling(grid,params):
     for arg in grid:
         p_calc(arg,params)
 
-def dealership_model(s,a,lb=0,ub=20):
+def dealership_model(state_A,state_B,a,lb=0,ub=20):
     '''
     input:      s: dict {loc_A:, loc_B}
                 a: dict {loc_A:, loc_B}
@@ -99,19 +99,18 @@ def dealership_model(s,a,lb=0,ub=20):
     cars_returned_B = np.random.choice(np.arange(lb, ub+1), p=poisson(2))
 
     # Next state function
-    s_A = s['loc_A'] - cars_requested_A + cars_returned_A - a
-    s_B = s['loc_B'] - cars_requested_B + cars_returned_B + a
+    s_A = state_A - cars_requested_A + cars_returned_A - a
+    s_B = state_B - cars_requested_B + cars_returned_B + a
 
-    s_prime_A = np.clip(s_A, lb, ub+1) # clamp values between 0 and 20
-    s_prime_B = np.clip(s_B, lb, ub+1) # clamp values between 0 and 20
-    s_prime = {'loc_A': s_prime_A, 'loc_B': s_prime_B}
+    s_prime_A = np.clip(s_A, lb, ub) # clamp values between 0 and 20
+    s_prime_B = np.clip(s_B, lb, ub) # clamp values between 0 and 20
 
     # Reward function
-    r_A = (max(s['loc_A'] - cars_requested_A,0) * 10.0)
-    r_B = (max(s['loc_B'] - cars_requested_B,0) * 10.0)
+    r_A = (max(state_A - cars_requested_A,0) * 10.0)
+    r_B = (max(state_B - cars_requested_B,0) * 10.0)
     r = r_A + r_B - (abs(a) * 2.0)
 
-    return s_prime, r
+    return s_prime_A , s_prime_B, r
 
 def poisson(lamda,lb=0,ub=20):
     '''
@@ -382,33 +381,28 @@ if __name__ == "__main__":
 
     # compute_posterior_P()
 
-    pi,V = init()
-    policies,value_functions = train(pi,V,save=False)
+    pi_0,V_0 = init()
+    policies,value_functions = train(pi_0,V_0,save=False)
     
-    pi = policies[0]; V = value_functions[4]
+    pi = policies[-1]; V = value_functions[-1]
 
-    # for keys, values in V.items():
-    #     print(keys)
-    #     print(values)
+    # run the model
+    state_A = 10; state_B = 10
 
-    # # run the model
-    # s = {'loc_A': 10, 'loc_B': 10}
-    # a = {'loc_A': 0, 'loc_B': 0}
+    fig, ax = plt.subplots(figsize=(10,6))
 
-    # fig, ax = plt.subplots(figsize=(10,6))
+    r_cumulative = 0.0; time = []; s_A = []; r_plot = []
+    for i in range(365):
+        state_A,state_B,r = dealership_model(state_A,state_B,pi[(state_A,state_B)],lb=0,ub=20)
 
-    # r_cumulative = 0.0; time = []; s_A = []; r_plot = []
-    # for i in range(365):
-    #     s,r = dealership_model(s,a,lb=0,ub=20)
+        time += [i]
+        s_A += [state_A]
+        r_cumulative += r
+        r_plot += [r_cumulative]
 
-    #     time += [i]
-    #     s_A += [s['loc_A']]
-    #     r_cumulative += r
-    #     r_plot += [r_cumulative]
+        clear_lines(ax)
 
-    #     clear_lines(ax)
+        ax.plot(time,s_A,'-b')
 
-    #     ax.plot(time,r_plot,'-b')
-
-    #     plt.draw()
-    #     plt.pause(0.001)
+        plt.draw()
+        plt.pause(0.001)
