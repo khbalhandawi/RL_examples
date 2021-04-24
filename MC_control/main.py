@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from itertools import combinations
 import pickle
 
-def dealership_model(state_A,state_B,lb=0,ub=20):
+def dealership_model(state,lb=0,ub=20):
     '''
     input:      s: dict {loc_A:, loc_B}
                 a: dict {loc_A:, loc_B}
@@ -19,18 +19,20 @@ def dealership_model(state_A,state_B,lb=0,ub=20):
     cars_returned_B = np.random.choice(np.arange(lb, ub+1), p=poisson(2,lb=lb,ub=ub))
 
     # Next state function
-    s_A = state_A - cars_requested_A + cars_returned_A
-    s_B = state_B - cars_requested_B + cars_returned_B
+    s_A = state[0] - cars_requested_A + cars_returned_A
+    s_B = state[1] - cars_requested_B + cars_returned_B
 
     s_prime_A = np.clip(s_A, lb, ub) # clamp values between 0 and 20
     s_prime_B = np.clip(s_B, lb, ub) # clamp values between 0 and 20
 
     # Reward function
-    r_A = (min(cars_requested_A,state_A) * 10.0)
-    r_B = (min(cars_requested_B,state_B) * 10.0)
+    r_A = (min(cars_requested_A,state[0]) * 10.0)
+    r_B = (min(cars_requested_B,state[1]) * 10.0)
     r = r_A + r_B
+    
+    s_prime = (s_prime_A, s_prime_B)
 
-    return s_prime_A , s_prime_B, r
+    return s_prime, r
 
 def poisson(lamda,lb=0,ub=20):
     '''
@@ -56,41 +58,44 @@ def init(lb=0,ub=20,lb_a=-5,ub_a=5):
     pi = {}; Q = {}; C = {}; a = {}
     for state_A in states:
         for state_B in states:
-
-            a[(state_A, state_B)] = get_possible_acts(state_A,state_B,actions,lb=lb,ub=ub)
+            
+            state = (state_A,state_B)
+            a[state] = get_possible_acts(state,actions,lb=lb,ub=ub)
 
             Q_a = []
-            for possible_action in a[(state_A, state_B)]:
+            for possible_action in a[state]:
 
                 q_init = np.random.random()
                 Q_a += [q_init]
-                Q[((state_A, state_B),possible_action)] = q_init
-                C[((state_A, state_B),possible_action)] = 0
+                Q[(state,possible_action)] = q_init
+                Q[(state,possible_action)] = 0
+                C[(state,possible_action)] = 0
 
-            pi[(state_A, state_B)] = a[(state_A, state_B)][np.argmax(Q_a)]
+            pi[state] = a[state][np.argmax(Q_a)]
+            pi[state] = 0
 
     return Q,C,pi,a
 
-def get_possible_acts(state_A,state_B,actions,lb=0,ub=20):
+def get_possible_acts(state,actions,lb=0,ub=20):
     # decide on action
     possible_actions = []
     for action in actions:
-        if state_A - action >= lb and state_B + action >= lb and action + state_B <= ub and - action + state_A <= ub:
+        if state[0] - action >= lb and state[1] + action >= lb and action + state[1] <= ub and - action + state[0] <= ub:
             possible_actions += [action]
 
     return possible_actions
 
-def get_action_b(best_action,state_A,state_B,a,epsilon=0.5):
+def get_action_b(best_action,state,a,epsilon=0.1):
 
-    if np.random.rand() > epsilon and best_action in a[(state_A,state_B)]:
+    if np.random.rand() > epsilon and best_action in a[state]:
         soft_action = best_action
     else:
-        soft_action = np.random.choice(a[(state_A,state_B)])
+        soft_action = np.random.choice(a[state])
 
-    num_actions = len(a[(state_A,state_B)])
+    num_actions = len(a[state])
 
     # Update behavioral policy
-    if best_action in a[(state_A,state_B)]:
+    if best_action in a[state]:
 
         if soft_action == best_action:
             prob = 1 - epsilon + epsilon/num_actions
@@ -101,12 +106,12 @@ def get_action_b(best_action,state_A,state_B,a,epsilon=0.5):
 
     return prob,soft_action
 
-def get_action_pi(best_action,state_A,state_B,a):
+def get_action_pi(best_action,state,a):
 
-    if best_action in a[(state_A,state_B)]:
+    if best_action in a[state]:
         greedy_action = best_action
     else:
-        greedy_action = np.random.choice(a[(state_A,state_B)])
+        greedy_action = np.random.choice(a[state])
 
     return greedy_action
 
@@ -149,20 +154,19 @@ def plot_policy(ax,pi,ns=21):
     plt.draw()
     plt.pause(0.001)
 
-def episode(pi,state_A_0,state_B_0,a,T=10,lb=0,ub=20):
+def episode(pi,state_0,a,T=100,lb=0,ub=20):
 
-    state_A = state_A_0; state_B = state_B_0
-    s_A = []; s_B = []; A = []; R = [0]; probs = []
+    state = state_0
+    s = []; A = []; R = [0]; probs = []
     for i in range(T):
 
-        best_action = pi[(state_A,state_B)]
-        prob,soft_action = get_action_b(best_action,state_A,state_B,a)
+        best_action = pi[state]
+        prob,soft_action = get_action_b(best_action,state,a)
 
         # print("state A: %2d | state B: %2d | a: %2d | p: %3f" %(state_A,state_B,soft_action,prob))
-        s_A += [state_A]; s_B += [state_B]; # starting from S_0
+        s += [state] # starting from S_0
 
-        state_A -= soft_action
-        state_B += soft_action
+        state_action = (state[0] - soft_action, state[1] + soft_action)
 
         A += [soft_action]
         r_move = abs(soft_action) * 2.0
@@ -170,46 +174,46 @@ def episode(pi,state_A_0,state_B_0,a,T=10,lb=0,ub=20):
         # print("best action: %2d | soft action: %2d" %(best_action,soft_action))
         # print("state A: %2d | state B: %2d" %(state_A,state_B))
 
-        state_A,state_B,r_sell = dealership_model(state_A,state_B,lb=lb,ub=ub)
+        state,r_sell = dealership_model(state_action,lb=lb,ub=ub)
 
         r = r_sell - r_move
 
         R += [r] # starting from R1
         probs += [prob]
 
-    return s_A, s_B, A, R, probs
+    return s, A, R, probs
 
-def train(Q,C,pi,state_A_0,state_B_0,a,N,gamma=1,lb=0,ub=20):
+def train(Q,C,pi,state_0,a,N,gamma=1,lb=0,ub=20):
 
-    [s_A, s_B, A, R, probs] = episode(pi,state_A_0,state_B_0,a,lb=lb,ub=ub)
+    [s, A, R, probs] = episode(pi,state_0,a,lb=lb,ub=ub)
     G = 0
     W = 1
 
-    T = len(s_A)
+    T = len(s)
 
     for t in range(T-1,-1,-1):
 
-        Sa_t = s_A[t]; Sb_t = s_B[t]; A_t = A[t]
+        S_t = s[t]; A_t = A[t]
 
         # print("state A: %2d | state B: %2d | r: %2f" %(Sa_t,Sb_t,R[t+1]))
 
         G = gamma*G + R[t+1]
-        C[((Sa_t, Sb_t),A_t)] += W
-        Q[((Sa_t, Sb_t),A_t)] += (W * (G - Q[((Sa_t, Sb_t),A_t)]) ) / C[((Sa_t, Sb_t),A_t)]
+        C[(S_t,A_t)] += W
+        Q[(S_t,A_t)] += ( W * (G - Q[(S_t,A_t)]) ) / C[(S_t,A_t)]
 
         Q_S_a = []
-        for action in a[(Sa_t,Sb_t)]:
-            Q_S_a += [Q[((Sa_t, Sb_t),action)]]
+        for action in a[S_t]:
+            Q_S_a += [Q[(S_t,action)]]
 
         # maxs = np.argwhere(Q_S_a == np.amax(Q_S_a)).flatten().tolist()
         # for max_arg in maxs:
-        #     if a[(Sa_t,Sb_t)][max_arg] != pi[(Sa_t, Sb_t)]:
-        #         pi[(Sa_t, Sb_t)] = max_arg
+        #     if a[S_t][max_arg] != pi[S_t]:
+        #         pi[S_t] = max_arg
         #         break
 
-        pi[(Sa_t, Sb_t)] = a[(Sa_t,Sb_t)][np.argmax(Q_S_a)]
-        if A_t != pi[(Sa_t, Sb_t)]:
-            break
+        pi[S_t] = a[S_t][np.argmax(Q_S_a)]
+        # if A_t != pi[S_t]:
+        #     break
 
         W /= probs[t]
 
@@ -219,7 +223,7 @@ if __name__ == "__main__":
 
     lb = 0; ub = 20
     Q,C,pi,a = init(lb=lb,ub=ub)
-    state_A_0 = 5; state_B_0 = 5
+    state_0 = (10, 10)
 
     # fig_1, ax_1 = plt.subplots(figsize=(10,6))
     fig = plt.figure(figsize=(10,10))
@@ -239,7 +243,7 @@ if __name__ == "__main__":
 
     for N in range(100000):
 
-        Q,C,pi,G = train(Q,C,pi,state_A_0,state_B_0,a,N,gamma=1,lb=lb,ub=ub)
+        Q,C,pi,G = train(Q,C,pi,state_0,a,N,gamma=1,lb=lb,ub=ub)
 
         if N % plot_interval == 0:
             print("Episode %i" %(N))
