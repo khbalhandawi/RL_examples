@@ -2,7 +2,7 @@ import numpy as np
 from environment import Environment
 from agent import Agent
 from visualizer import Visualizer
-from control import TDControlOnPolicy
+from control import TDControlOnPolicy,TDControlOffPolicy
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     env = Environment(state_0)
     agent = Agent(epsilon=0.1,atype="8D")
 
-    contoller = TDControlOnPolicy(agent,env,vis,budget=800000,alpha=0.1,plotInterval=2000)
+    contoller = TDControlOffPolicy(agent,env,vis,budget=800000,alpha=0.1,plotInterval=2000)
     contoller.train()
     plt.show()
 

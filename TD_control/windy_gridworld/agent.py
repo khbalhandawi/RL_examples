@@ -110,9 +110,28 @@ class Agent():
 
         return prob
 
-    def update_policy(self,state,action,reward,s_prime,a_prime,alpha,gamma):
+    def update_policy_ON(self,state,action,reward,s_prime,a_prime,alpha,gamma):
 
         error = reward + (gamma * self.Q[(s_prime,a_prime)]) - self.Q[(state,action)]
+        Q_updated =  self.Q[(state,action)] + (alpha * error)
+
+        self.Q[(state,action)] = Q_updated
+
+        Q_a = []
+        for possible_action in self.a[state]: 
+            Q_a += [self.Q[(state,possible_action)]]
+
+        self.pi[state] = self.a[state][np.argmax(Q_a)]
+
+    def update_policy_OFF(self,state,action,reward,s_prime,alpha,gamma):
+
+        Q_a = []
+        for a in self.a[s_prime]:
+            Q_a += [self.Q[(s_prime,a)]]
+
+        Q_max = np.max(Q_a)
+
+        error = reward + (gamma * Q_max) - self.Q[(state,action)]
         Q_updated =  self.Q[(state,action)] + (alpha * error)
 
         self.Q[(state,action)] = Q_updated
