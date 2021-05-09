@@ -2,7 +2,7 @@ import numpy as np
 from environment import Environment
 from agent import Agent
 from visualizer import Visualizer
-from control import TDControlOnPolicy,TDControlOffPolicy
+from control import MCControl
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
@@ -19,10 +19,10 @@ if __name__ == "__main__":
     # vis.visualize_gridworld()
 
     state_0 = (0,3)
-    env = Environment(state_0,wind="stochastic")
-    agent = Agent(epsilon=0.1,atype="4D")
+    env = Environment(state_0)
+    agent = Agent(epsilon=0.5,atype="4D")
 
-    contoller = TDControlOffPolicy(agent,env,vis,budget=80000,alpha=0.1,plotInterval=2000)
+    contoller = MCControl(agent,env,vis,gamma=1.00,budget=8000000,plotInterval=2000,episodeLength=500,decay=1.0)
     contoller.train()
     plt.show()
 
