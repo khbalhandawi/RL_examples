@@ -3,3 +3,4 @@ pi*
 V*
 *.pkl
 .vscode
+__pycache__*
