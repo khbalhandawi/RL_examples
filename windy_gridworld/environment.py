@@ -9,6 +9,7 @@ class Environment():
         self.state = copy.deepcopy(self.state_0)
         self.wind_dict = {i: wind[i] for i in range(len(wind))}
         self.wind_type = wind_type
+        self.current_wind = wind
         self.terminal_state = [7,3]
         self.reach_goal = False
         self.steps = 0
@@ -52,8 +53,8 @@ class Environment():
         if self.wind_type == 'fixed':
             self.state[1] = min(self.ub_y, self.state[1] + self.wind_dict[self.state[0]]) # shift by wind force first
         elif self.wind_type == 'stochastic':
-            possible_values = list(range(max([self.wind_dict[self.state[0]]-1,0]),min([self.wind_dict[self.state[0]]+1,3])+1))
-            self.state[1] = min(self.ub_y, self.state[1] + np.random.choice(possible_values)) # shift by wind force first
+            self.current_wind[self.state[0]] = np.random.choice(list(range(max([self.current_wind[self.state[0]]-1,0]),min([self.current_wind[self.state[0]]+1,3])+1)))
+            self.state[1] = min(self.ub_y, self.state[1] + self.current_wind[self.state[0]]) # shift by wind force first
 
         self.steps += 1
 

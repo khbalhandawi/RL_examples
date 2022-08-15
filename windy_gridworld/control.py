@@ -38,7 +38,7 @@ class TDControlOnPolicy():
             action = a_prime
 
             if plotSteps:
-                self.visualizer.draw_policy(self.agent.pi,state)
+                self.visualizer.draw_policy(self.agent.pi,state,wind=self.environment.current_wind)
                 time.sleep(0.5)
 
     def train(self):
@@ -70,7 +70,7 @@ class TDControlOnPolicy():
                 action = self.agent.get_action_soft(state)
                 
             if self.t % self.plotInterval == 0:
-                self.visualizer.draw_policy(self.agent.pi)
+                self.visualizer.draw_policy(self.agent.pi,wind=self.environment.current_wind)
                 self.visualizer.draw_reward(self.episodes,self.length_episodes)
 
                 print("Time step %i" %(self.t))
@@ -110,7 +110,7 @@ class TDControlOffPolicy():
             state = s_prime
 
             if plotSteps:
-                self.visualizer.draw_policy(self.agent.pi,state)
+                self.visualizer.draw_policy(self.agent.pi,state,wind=self.environment.current_wind)
                 time.sleep(0.5)
 
     def train(self):
@@ -140,7 +140,7 @@ class TDControlOffPolicy():
                 action = self.agent.get_action_soft(state)
                 
             if self.t % self.plotInterval == 0:
-                self.visualizer.draw_policy(self.agent.pi)
+                self.visualizer.draw_policy(self.agent.pi,wind=self.environment.current_wind)
                 self.visualizer.draw_reward(self.episodes,self.length_episodes)
 
                 print("Time step %i" %(self.t))
@@ -208,7 +208,7 @@ class MCControl():
             states += [state]; actions += [action]; rewards += [reward]; probs += [prob]
 
             if plotSteps:
-                self.visualizer.draw_policy(self.agent.pi,state)
+                self.visualizer.draw_policy(self.agent.pi,state,wind=self.environment.current_wind)
                 time.sleep(0.5)
 
         # self.replay_episode(states,actions,rewards,probs)
@@ -246,7 +246,7 @@ class MCControl():
                 states = []; actions = []; probs = []; rewards = [0]
                 
             if self.t % self.plotInterval == 0:
-                self.visualizer.draw_policy(self.agent.pi)
+                self.visualizer.draw_policy(self.agent.pi,wind=self.environment.current_wind)
                 self.visualizer.draw_reward(self.episodes,self.length_episodes)
 
                 print("Time step %i" %(self.t))
